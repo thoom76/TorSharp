@@ -1,0 +1,6 @@
+﻿services:
+  torsharp:
+    image: torsharp
+    build:
+      context: .
+      dockerfile: TorSharp/Dockerfile

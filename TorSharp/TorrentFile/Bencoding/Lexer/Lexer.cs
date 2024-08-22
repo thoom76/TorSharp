@@ -6,7 +6,7 @@ public class Lexer : ILexer
 {
     public DictionaryToken GetTokens(string input)
     {
-        int i = 0;
+        var i = 0;
         var baseToken = Tokenize(input, ref i);
         if (baseToken is not DictionaryToken dictionaryToken)
         {

@@ -12,52 +12,78 @@ using TorSharp.PubSubService;
 using TorSharp.PubSubService.InMemoryPubSub;
 using TorSharp.TorrentFile.Models;
 using TorSharp.TorrentFile.Bencoding.Lexer;
+using Spectre.Console;
+using System.Diagnostics;
+using System.Text;
+using Serilog;
+using Serilog.Sinks.File;
+using TorSharp.BackgroundServices.UIService;
+using Microsoft.Extensions.Configuration;
 
-public abstract record BaseEvent<T>{
+public abstract record BaseEvent<T>
+{
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
     public abstract T Message { get; init; }
 }
 
 public record TorrentMetadataDownloadRequested(string Message) : BaseEvent<string>;
-public record TorrentDownloadRequested(ITorrentMetadata Message) : BaseEvent<ITorrentMetadata>;
 
 public static class Program
 {
     public static async Task Main(string[] args)
     {
-        HostApplicationBuilder builder = Host.CreateApplicationBuilder();
+        var builder = Host.CreateDefaultBuilder();
 
+        ConfigureConfiguration(builder);
         ConfigureLogging(builder);
-        ConfigureHostedServices(builder.Services);
-        ConfigureDI(builder.Services);
-
-        IHost host = builder.Build();
-
-        Task backgroundServices = host.RunAsync();
-
-        var pubSubService = host.Services.GetService<IPubSubService<TorrentMetadataDownloadRequested>>() 
-            ?? throw new InvalidOperationException("PubSubService is null");
+        ConfigureHostedServices(builder);
+        ConfigureDI(builder);
         
-        await pubSubService.PublishAsync(new TorrentMetadataDownloadRequested("<some url>"));
-
-        await backgroundServices;
+        var host = builder.Build(); 
+        await host.RunAsync();
     }
 
-    public static void ConfigureLogging(HostApplicationBuilder hostApplicationBuilder)
+    public static void ConfigureConfiguration(IHostBuilder hostApplicationBuilder)
     {
-        hostApplicationBuilder.Logging.SetMinimumLevel(LogLevel.Trace);
+        hostApplicationBuilder.ConfigureAppConfiguration((hostingContext, config) =>
+        {
+            config.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
+        });
     }
 
-    public static void ConfigureHostedServices(IServiceCollection services)
+    public static void ConfigureLogging(IHostBuilder hostBuilder)
     {
-        services.AddHostedService<TorrentMetadataDownloaderService>();
-        services.AddHostedService<TorrentDownloaderService>();
+        var tmpLogFile = Path.Join(Path.GetTempPath(), "TorSharp.log");
+
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Debug()
+            .WriteTo.File(tmpLogFile, outputTemplate: "{Timestamp:HH:mm:ss} [{Level}] {Message:lj}{NewLine}{Exception}")
+            .CreateLogger();
+
+        hostBuilder.ConfigureLogging(logging =>
+        {
+            logging.ClearProviders();
+            logging.AddSerilog();
+        });
     }
 
-    public static void ConfigureDI(IServiceCollection services)
+    public static void ConfigureHostedServices(IHostBuilder hostBuilder)
     {
-        services.AddSingleton(typeof(IPubSubService<>), typeof(InMemoryPubSubService<>));
-        services.AddSingleton<ILexer, Lexer>();
-        services.AddSingleton<IParser, Parser>();
+        hostBuilder.ConfigureServices((hostContext, services) =>
+        {
+            services.AddHostedService<TorrentMetadataDownloaderService>();
+            services.AddHostedService<TorrentDownloaderService>();
+            services.AddHostedService<UIService>();
+        });
+    }
+
+    public static void ConfigureDI(IHostBuilder hostBuilder)
+    {
+        hostBuilder.ConfigureServices((hostContext, services) =>
+        {
+            services.AddSingleton(typeof(IPubSubService<>), typeof(InMemoryPubSubService<>));
+            services.AddSingleton<ILexer, Lexer>();
+            services.AddSingleton<IParser, Parser>();
+        });
     }
 }

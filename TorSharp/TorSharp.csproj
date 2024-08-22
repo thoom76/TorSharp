@@ -5,6 +5,7 @@
         <LangVersion>latestmajor</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <WarningsAsErrors>Nullable</WarningsAsErrors>
         <PublishAot>true</PublishAot>
         <InvariantGlobalization>true</InvariantGlobalization>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
@@ -18,6 +19,11 @@
 
     <ItemGroup>
       <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+      <PackageReference Include="Serilog" Version="4.0.1" />
+      <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
+      <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+      <PackageReference Include="Spectre.Console" Version="0.49.1" />
+      <PackageReference Include="Spectre.Console.Cli" Version="0.49.1" />
       <PackageReference Include="System.Threading.Channels" Version="8.0.0" />
     </ItemGroup>
 </Project>

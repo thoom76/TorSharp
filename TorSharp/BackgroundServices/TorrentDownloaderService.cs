@@ -1,8 +1,8 @@
+using System.Net.NetworkInformation;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using TorSharp.PubSubService;
-using TorSharp.TorrentFile.Bencoding.Parser;
-using TorSharp.TorrentFile.Lexer;
+using TorSharp.TorrentFile.Models;
 
 namespace TorSharp.BackgroundServices;
 
@@ -16,14 +16,14 @@ public sealed class TorrentDownloaderService(
         logger.LogInformation("TorSharp service is starting.");
 
         using var subscription = pubSubService.SubscribeAsync(ctx);
-        await foreach (var nullableEvent in subscription.Messages)
+        await foreach (var downloadRequestedEvent in subscription.Messages)
         {
-            logger.LogDebug("Received message: {message}", nullableEvent);
-            if(nullableEvent is null){
+            logger.LogDebug("Received message: {message}", downloadRequestedEvent);
+            if(downloadRequestedEvent is null){
                 continue;
             }
 
-            var torrentMetadata = nullableEvent.Message;
+            var torrentMetadata = downloadRequestedEvent.Message;
 
             // TODO: Download the files with the torrent metadata.
             logger.LogDebug("Torrent announce URL: {Announce}", torrentMetadata.Announce);

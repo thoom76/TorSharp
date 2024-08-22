@@ -108,7 +108,8 @@ public class Lexer : ILexer
             'i' => (ReadInteger(input, ref i) as BaseToken)!,
             'l' => (ReadList(input, ref i) as BaseToken)!,
             'd' => (ReadDictionary(input, ref i) as BaseToken)!,
-            _ => (ReadString(input, ref i) as BaseToken)!,
+            >= '0' and <= '9' => (ReadString(input, ref i) as BaseToken)!,
+            _ => throw new Exception($"Invalid start of new token: '{input[i]}'"), 
         };
         return token;
     }

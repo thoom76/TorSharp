@@ -1,14 +1,15 @@
 using System.Net.NetworkInformation;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using TorSharp.BackgroundServices.UIService;
 using TorSharp.PubSubService;
-using TorSharp.TorrentFile.Models;
 
 namespace TorSharp.BackgroundServices;
 
 public sealed class TorrentDownloaderService(
     ILogger<TorrentDownloaderService> logger,
-    IPubSubService<TorrentDownloadRequested> pubSubService
+    IPubSubService<TorrentDownloadRequested> pubSubService,
+    IPubSubService<NotificationSent> notificationSentPubSubService
 ) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ctx)
@@ -27,6 +28,8 @@ public sealed class TorrentDownloaderService(
 
             // TODO: Download the files with the torrent metadata.
             logger.LogDebug("Torrent announce URL: {Announce}", torrentMetadata.Announce);
+
+            await notificationSentPubSubService.PublishAsync(new NotificationSent(new Notification(NotificationType.ERROR, "Miauw!")), ctx);
         }
 
         logger.LogInformation("TorSharp service is stopping.");

@@ -29,13 +29,16 @@ public sealed class TorrentMetadataDownloaderService(
             logger.LogDebug("Received message: {message}", message);
 
             var absoluteFilePath = "torrent.torrent";
-            await DownloadTorrentFile(new HttpClient(), absoluteFilePath, message.Message);
+            // await DownloadTorrentFile(new HttpClient(), absoluteFilePath, message.Message);
 
             await using var fileStream = File.OpenRead(absoluteFilePath);
             using var reader = new StreamReader(fileStream, Encoding.Latin1);
 
             // TODO: Make it possible to get the tokens from the stream directly.
             var tokens = lexer.GetTokens(await reader.ReadToEndAsync(ctx)); 
+            // TODO: This should be removed after testing.
+            tokens.Value.Add(new StringToken { Value = "announce" }, new StringToken { Value = "http://tracker.example.com/announce" });
+            
             var torrentMetadata = parser.GetTorrentMetadata(tokens);
 
             await torrentDownloadPubSub.PublishAsync(new TorrentDownloadRequested(torrentMetadata), ctx);

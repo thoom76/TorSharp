@@ -79,7 +79,12 @@ public sealed class UIService(
     {
         progress = (progress + 1) % 100;
 
-        if(Debugger.IsAttached && !startedRunning){
+        if(Debugger.IsAttached)
+        {
+            if(startedRunning) 
+            {
+                return;
+            }
             startedRunning = true;
             await RequestDownloadTest(ctx);
             // await notificationSentPubSubService.PublishAsync(new NotificationSent(new Notification(NotificationType.WARNING, "Debugging mode is enabled which doesn't work with this UI!")), ctx);

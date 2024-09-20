@@ -28,8 +28,6 @@ public sealed class TorrentDownloaderService(
 
             // TODO: Download the files with the torrent metadata.
             logger.LogDebug("Torrent announce URL: {Announce}", torrentMetadata.Announce);
-
-            await notificationSentPubSubService.PublishAsync(new NotificationSent(new Notification(NotificationType.ERROR, "Miauw!")), ctx);
         }
 
         logger.LogInformation("TorSharp service is stopping.");

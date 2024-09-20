@@ -39,6 +39,7 @@ public sealed class UIService(
     private readonly UIState state = new(); 
 
     private int progress = 0;
+    private bool startedRunning = false;
 
     private async Task BackgroundNotificationHandler(CancellationToken ctx){
         var notificationSentSubscription = notificationSentPubSubService.SubscribeAsync(ctx);
@@ -78,6 +79,13 @@ public sealed class UIService(
     {
         progress = (progress + 1) % 100;
 
+        if(Debugger.IsAttached && !startedRunning){
+            startedRunning = true;
+            await RequestDownloadTest(ctx);
+            // await notificationSentPubSubService.PublishAsync(new NotificationSent(new Notification(NotificationType.WARNING, "Debugging mode is enabled which doesn't work with this UI!")), ctx);
+            return;
+        }
+
         if(Console.KeyAvailable)
         {
             var input = Console.ReadKey(true);
@@ -99,7 +107,7 @@ public sealed class UIService(
             if(key == ConsoleKey.T)
             {
                 // TODO: Should open the download torrent page
-                await downloadRequestedPubSubService.PublishAsync(new TorrentMetadataDownloadRequested("https://libtorrent.org/bittorrent-v2-test.torrent"), ctx);
+                await RequestDownloadTest(ctx);
                 return;
             }
             if(key == ConsoleKey.Q)
@@ -109,6 +117,11 @@ public sealed class UIService(
             }
         }
 
+    }
+
+    private async Task RequestDownloadTest(CancellationToken ctx){
+        const string torrentUrl = "https://academictorrents.com/download/677c372dc782db9ecfda7284a2fe48d925e7fc4c.torrent";
+        await downloadRequestedPubSubService.PublishAsync(new TorrentMetadataDownloadRequested(torrentUrl), ctx);
     }
 
     private void Render()

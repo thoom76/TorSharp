@@ -2,6 +2,7 @@ using System.Net.NetworkInformation;
 using System.Text;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using TorSharp.BackgroundServices.UIService;
 using TorSharp.PubSubService;
 using TorSharp.TorrentFile.Bencoding.Lexer;
 using TorSharp.TorrentFile.Bencoding.Parser;
@@ -15,6 +16,7 @@ public sealed class TorrentMetadataDownloaderService(
     ILogger<TorrentMetadataDownloaderService> logger,
     IPubSubService<TorrentMetadataDownloadRequested> torrentMetadataDownloadPubSub,
     IPubSubService<TorrentDownloadRequested> torrentDownloadPubSub,
+    IPubSubService<NotificationSent> notificationSentPubSubService,
     ILexer lexer,
     IParser parser
 ) : BackgroundService
@@ -27,27 +29,31 @@ public sealed class TorrentMetadataDownloaderService(
         await foreach (var message in subscription.Messages.WithCancellation(ctx))
         {
             logger.LogDebug("Received message: {message}", message);
+            try
+            {
+                var absoluteFilePath = "torrent.torrent";
+                // await DownloadTorrentFile(new HttpClient(), absoluteFilePath, message.Message);
 
-            var absoluteFilePath = "torrent.torrent";
-            // await DownloadTorrentFile(new HttpClient(), absoluteFilePath, message.Message);
+                await using var fileStream = File.OpenRead(absoluteFilePath);
+                using var reader = new StreamReader(fileStream, Encoding.Latin1);
 
-            await using var fileStream = File.OpenRead(absoluteFilePath);
-            using var reader = new StreamReader(fileStream, Encoding.Latin1);
+                // TODO: Make it possible to get the tokens from the stream directly.
+                var tokens = lexer.GetTokens(await reader.ReadToEndAsync(ctx)); 
+                
+                var torrentMetadata = parser.GetTorrentMetadata(tokens);
 
-            // TODO: Make it possible to get the tokens from the stream directly.
-            var tokens = lexer.GetTokens(await reader.ReadToEndAsync(ctx)); 
-            // TODO: This should be removed after testing.
-            tokens.Value.Add(new StringToken { Value = "announce" }, new StringToken { Value = "http://tracker.example.com/announce" });
-            
-            var torrentMetadata = parser.GetTorrentMetadata(tokens);
+                await torrentDownloadPubSub.PublishAsync(new TorrentDownloadRequested(torrentMetadata), ctx);
 
-            await torrentDownloadPubSub.PublishAsync(new TorrentDownloadRequested(torrentMetadata), ctx);
+                // var tokens = lexer.GetTokens("d8:announce35:http://tracker.example.com/announce7:comment32:This is an example torrent file.10:created by25:ExampleTorrentCreator 2.013:creation datei1625563200e4:infod11:file lengthi100000000e9:file treed9:file1.txtd6:lengthi12345678e11:pieces root18:<binary hash data>e9:file2.txtd6:lengthi87654321e11:pieces root18:<binary hash data>ee12:meta versioni2e4:name14:example_folder12:piece lengthi262144e11:pieces root18:<binary hash data>e12:piece layersd16:<some data hash>19:<another data hash>ee");
+                // var torrentMetadata = parser.GetTorrentMetadata(tokens);
 
-            // var tokens = lexer.GetTokens("d8:announce35:http://tracker.example.com/announce7:comment32:This is an example torrent file.10:created by25:ExampleTorrentCreator 2.013:creation datei1625563200e4:infod11:file lengthi100000000e9:file treed9:file1.txtd6:lengthi12345678e11:pieces root18:<binary hash data>e9:file2.txtd6:lengthi87654321e11:pieces root18:<binary hash data>ee12:meta versioni2e4:name14:example_folder12:piece lengthi262144e11:pieces root18:<binary hash data>e12:piece layersd16:<some data hash>19:<another data hash>ee");
-            // var torrentMetadata = parser.GetTorrentMetadata(tokens);
-
-            // // TODO: Don't call PublishAsync directly, use a separate service to download the torrent files
-            // await torrentDownloadPubSub.PublishAsync(new TorrentDownloadRequested(torrentMetadata));
+                // // TODO: Don't call PublishAsync directly, use a separate service to download the torrent files
+                // await torrentDownloadPubSub.PublishAsync(new TorrentDownloadRequested(torrentMetadata));
+            }
+            catch (Exception e)
+            {
+                await notificationSentPubSubService.PublishAsync(new NotificationSent(new Notification(NotificationType.ERROR, e.Message)), ctx);
+            }
         }
 
         logger.LogInformation("Torrent metadata downloader service is stopping.");

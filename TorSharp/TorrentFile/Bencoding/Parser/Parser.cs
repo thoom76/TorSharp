@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography;
 using TorSharp.TorrentFile.Models;
 using TorSharp.TorrentFile.Models.Content;
 using TorSharp.TorrentFile.Models.Content.Folder;
@@ -13,19 +12,19 @@ public class Parser : IParser
 {
     public class IssueFormater
     {
-        public static string WrongValueType(Type expectedType, Type receivedType)
+        public static string WrongValueType(TokenNameGraph tokenNameGraph, Type expectedType, Type receivedType)
         {
-            return $"The token must be of type {expectedType.Name}, received: {receivedType.Name}";
+            return $"The token {tokenNameGraph} must be of type {expectedType.Name}, received: {receivedType.Name}";
         }
 
-        public static string MissingToken(string tokenName)
+        public static string MissingToken(TokenNameGraph tokenNameGraph)
         {
-            return $"The {tokenName} token is missing";
+            return $"The token {tokenNameGraph} is missing";
         }
 
-        public static string WrongContentType(string tokenName, IList<string> fileIssues, IList<string> folderIssues)
+        public static string WrongContentType(TokenNameGraph tokenNameGraph, IList<string> fileIssues, IList<string> folderIssues)
         {
-            return $"The {tokenName} token must be of type {typeof(IFile).Name} or {typeof(IFolder).Name}. The following issues were found: <${nameof(fileIssues)}>:[{string.Join(", ", fileIssues)}] and <${nameof(folderIssues)}>:[{string.Join(", ", folderIssues)}]";
+            return $"The token {tokenNameGraph} must be of type {typeof(IFile).Name} or {typeof(IFolder).Name}. The following issues were found: <${nameof(fileIssues)}>:[{string.Join(", ", fileIssues)}] and <${nameof(folderIssues)}>:[{string.Join(", ", folderIssues)}]";
         }
     }
 
@@ -47,7 +46,7 @@ public class Parser : IParser
             {
                 if (keyValuePair.Value is not DictionaryToken dictionaryToken)
                 {
-                    issues.Add(IssueFormater.WrongValueType(typeof(DictionaryToken), keyValuePair.Value.GetType()));
+                    issues.Add(IssueFormater.WrongValueType(new ("info", "file tree"), typeof(DictionaryToken), keyValuePair.Value.GetType()));
                     continue;
                 }
                 fileTreeToken = dictionaryToken;
@@ -57,7 +56,7 @@ public class Parser : IParser
             {
                 if (keyValuePair.Value is not StringToken stringToken)
                 {
-                    issues.Add(IssueFormater.WrongValueType(typeof(StringToken), keyValuePair.Value.GetType()));
+                    issues.Add(IssueFormater.WrongValueType(new ("info", "name"), typeof(StringToken), keyValuePair.Value.GetType()));
                     continue;
                 }
                 torrentNameToken = stringToken;
@@ -67,7 +66,7 @@ public class Parser : IParser
             {
                 if (keyValuePair.Value is not IntegerToken integerToken)
                 {
-                    issues.Add(IssueFormater.WrongValueType(typeof(IntegerToken), keyValuePair.Value.GetType()));
+                    issues.Add(IssueFormater.WrongValueType(new ("info", "piece length"), typeof(IntegerToken), keyValuePair.Value.GetType()));
                     continue;
                 }
                 pieceLengthToken = integerToken;
@@ -77,8 +76,12 @@ public class Parser : IParser
             {
                 if (keyValuePair.Value is not IntegerToken integerToken)
                 {
-                    issues.Add(IssueFormater.WrongValueType(typeof(IntegerToken), keyValuePair.Value.GetType()));
+                    issues.Add(IssueFormater.WrongValueType(new ("info", "meta version"), typeof(IntegerToken), keyValuePair.Value.GetType()));
                     continue;
+                }
+                if (integerToken.Value != 2)
+                {
+                    issues.Add($"The token {new TokenNameGraph("info", "meta version")} must be version '2'. Other versions are not supported");
                 }
                 metaVersionToken = integerToken;
             }
@@ -86,19 +89,19 @@ public class Parser : IParser
 
         if (fileTreeToken is null)
         {
-            issues.Add(IssueFormater.MissingToken("file tree"));
+            issues.Add(IssueFormater.MissingToken(new ("info", "file tree")));
         }
         if (torrentNameToken is null)
         {
-            issues.Add(IssueFormater.MissingToken("name"));
+            issues.Add(IssueFormater.MissingToken(new ("info", "name")));
         }
         if (pieceLengthToken is null)
         {
-            issues.Add(IssueFormater.MissingToken("piece length"));
+            issues.Add(IssueFormater.MissingToken(new ("info", "piece length")));
         }
         if (metaVersionToken is null)
         {
-            issues.Add(IssueFormater.MissingToken("meta version"));
+            issues.Add(IssueFormater.MissingToken(new ("info", "meta version")));
         }
 
         if (issues.Count > 0)
@@ -118,7 +121,7 @@ public class Parser : IParser
         {
             if (kv.Value is not DictionaryToken dictionaryToken)
             {
-                issues.Add(IssueFormater.WrongValueType(typeof(DictionaryToken), kv.Value.GetType()));
+                issues.Add(IssueFormater.WrongValueType(new (kv.Key.Value), typeof(DictionaryToken), kv.Value.GetType()));
                 continue;
             }
 
@@ -134,7 +137,7 @@ public class Parser : IParser
                 continue;
             }
 
-            issues.Add(IssueFormater.WrongContentType(kv.Key.Value, fileIssues, folderIssues));
+            issues.Add(IssueFormater.WrongContentType(new (kv.Key.Value), fileIssues, folderIssues));
         }
 
         return contents;
@@ -171,7 +174,7 @@ public class Parser : IParser
             {
                 if (token.Value is not IntegerToken integerToken)
                 {
-                    issues.Add(IssueFormater.WrongValueType(typeof(IntegerToken), token.Value.GetType()));
+                    issues.Add(IssueFormater.WrongValueType(new (nameToken.Value, "length"), typeof(IntegerToken), token.Value.GetType()));
                     continue;
                 }
                 lengthToken = integerToken;
@@ -181,7 +184,7 @@ public class Parser : IParser
             {
                 if (token.Value is not StringToken stringToken)
                 {
-                    issues.Add(IssueFormater.WrongValueType(typeof(StringToken), token.Value.GetType()));
+                    issues.Add(IssueFormater.WrongValueType(new (nameToken.Value, "pieces root"), typeof(StringToken), token.Value.GetType()));
                     continue;
                 }
                 piecesRootToken = stringToken;
@@ -190,7 +193,7 @@ public class Parser : IParser
 
         if (lengthToken is null)
         {
-            issues.Add(IssueFormater.MissingToken("length"));
+            issues.Add(IssueFormater.MissingToken(new (nameToken.Value, "length")));
         }
 
         if (issues.Count > 0)
@@ -234,7 +237,7 @@ public class Parser : IParser
             {
                 if (token.Value is not StringToken announceToken)
                 {
-                    issues.Add(IssueFormater.WrongValueType(typeof(StringToken), token.Value.GetType()));
+                    issues.Add(IssueFormater.WrongValueType(new ("announce"), typeof(StringToken), token.Value.GetType()));
                     continue;
                 }
                 announce = announceToken;
@@ -244,7 +247,7 @@ public class Parser : IParser
             {
                 if (token.Value is not DictionaryToken infoToken)
                 {
-                    issues.Add(IssueFormater.WrongValueType(typeof(DictionaryToken), token.Value.GetType()));
+                    issues.Add(IssueFormater.WrongValueType(new ("info"), typeof(DictionaryToken), token.Value.GetType()));
                     continue;
                 }
                 info = infoToken;
@@ -254,7 +257,7 @@ public class Parser : IParser
             {
                 if (token.Value is not DictionaryToken pieceLayersToken)
                 {
-                    issues.Add(IssueFormater.WrongValueType(typeof(DictionaryToken), token.Value.GetType()));
+                    issues.Add(IssueFormater.WrongValueType(new ("piece layers"), typeof(DictionaryToken), token.Value.GetType()));
                     continue;
                 }
                 pieceLayers = pieceLayersToken;
@@ -263,20 +266,25 @@ public class Parser : IParser
 
         if (announce is null)
         {
-            issues.Add(IssueFormater.MissingToken("announce"));
+            issues.Add(IssueFormater.MissingToken(new ("announce")));
         }
         if (info is null)
         {
-            issues.Add(IssueFormater.MissingToken("info"));
+            issues.Add(IssueFormater.MissingToken(new ("info")));
         }
         if (pieceLayers is null)
         {
-            issues.Add(IssueFormater.MissingToken("piece layers"));
+            issues.Add(IssueFormater.MissingToken(new("piece layers")));
+        }
+
+        if (info?.Value.FirstOrDefault(kv => kv.Key.Value == "meta version").Value is not IntegerToken metaVersionToken || metaVersionToken.Value != 2)
+        {
+            issues.Add($"The token {new TokenNameGraph("info", "meta version")} must be version 2; other versions are not supported (yet)");
         }
 
         if (issues.Count > 0)
         {
-            throw new Exception(string.Join(", ", issues));
+            throw new Exception($"Errors while parsing the tokens:\n\t{string.Join("\n\t", issues)}");
         }
 
         return new TorrentMetadata(announce!.Value, GetInfo(info!), GetPieceLayers(pieceLayers!));

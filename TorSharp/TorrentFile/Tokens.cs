@@ -8,7 +8,7 @@ public abstract class BaseToken<TValue> : BaseToken
     public required TValue Value { get; init; }
 }
 
-public class IntegerToken : BaseToken<int>
+public class IntegerToken : BaseToken<long>
 {
     public override string ToString() => Value.ToString();
 }

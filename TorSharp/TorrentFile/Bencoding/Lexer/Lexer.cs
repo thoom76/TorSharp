@@ -27,7 +27,7 @@ public class Lexer : ILexer
             if (input[i] is 'e')
             {
                 i++;
-                return new IntegerToken { Value = int.Parse(result) };
+                return new IntegerToken { Value = long.Parse(result) };
             }
             result += input[i];
         }

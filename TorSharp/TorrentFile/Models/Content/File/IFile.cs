@@ -2,6 +2,6 @@ namespace TorSharp.TorrentFile.Models.Content;
 
 public interface IFile : IContent
 {
-    public int Length { get; }
+    public long Length { get; }
     public string? PiecesRoot { get; }
 }
